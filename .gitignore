@@ -19,6 +19,7 @@ Thumbs.db
 *.desktop
 *.deb
 *.exe
+*.flatpak
 
 
 # Test build output

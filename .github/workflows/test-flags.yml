@@ -124,3 +124,25 @@ jobs:
         echo "$OUTPUT" | grep -q "Clean Action: no" || (echo "❌ Expected 'Clean Action: no'" && exit 1)
         echo "✓ Test Case 9 Passed"
         # No cleanup needed
+
+    # Test Case 10: --build flatpak (clean=yes)
+    - name: Test Case 10 - --build flatpak (clean=yes)
+      run: |
+        echo "--- Running Test Case 10: ./build.sh --build flatpak --test-flags ---"
+        OUTPUT=$(./build.sh --build flatpak --test-flags)
+        echo "$OUTPUT"
+        echo "--- Verifying Test Case 10 ---"
+        echo "$OUTPUT" | grep -q "Build Format: flatpak" || (echo "❌ Expected 'Build Format: flatpak'" && exit 1)
+        echo "$OUTPUT" | grep -q "Clean Action: yes" || (echo "❌ Expected 'Clean Action: yes'" && exit 1)
+        echo "✓ Test Case 10 Passed"
+
+    # Test Case 11: --build flatpak --clean no
+    - name: Test Case 11 - --build flatpak --clean no
+      run: |
+        echo "--- Running Test Case 11: ./build.sh --build flatpak --clean no --test-flags ---"
+        OUTPUT=$(./build.sh --build flatpak --clean no --test-flags)
+        echo "$OUTPUT"
+        echo "--- Verifying Test Case 11 ---"
+        echo "$OUTPUT" | grep -q "Build Format: flatpak" || (echo "❌ Expected 'Build Format: flatpak'" && exit 1)
+        echo "$OUTPUT" | grep -q "Clean Action: no" || (echo "❌ Expected 'Clean Action: no'" && exit 1)
+        echo "✓ Test Case 11 Passed"

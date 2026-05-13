@@ -104,7 +104,10 @@ _resolve_titlebar_style() {
 # Requires: is_wayland, use_x11_on_wayland to be set
 #           (call detect_display_backend first)
 # Sets: electron_args array
-# Arguments: $1 = "appimage" or "deb" (affects --no-sandbox behavior)
+# Arguments: $1 = "appimage", "deb", "nix", or "flatpak"
+#           (affects --no-sandbox behavior; flatpak omits it because
+#           zypak-wrapper.sh translates the SUID sandbox to namespace
+#           sandboxing — passing --no-sandbox would defeat zypak)
 build_electron_args() {
 	local package_type="${1:-deb}"
 

@@ -53,6 +53,18 @@ jobs:
       artifact_suffix: ${{ matrix.artifact_suffix }}
       release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
 
+  # Flatpak runs on its own reusable workflow because flatpak-builder
+  # needs flathub runtimes pulled before build.sh fires, which doesn't
+  # match the deb/rpm/appimage container shape.
+  build-amd64-flatpak:
+    name: Build Packages (amd64 - flatpak)
+    needs: test-flags
+    uses: ./.github/workflows/build-flatpak.yml
+    with:
+      build_flags: "--build flatpak --clean no"
+      artifact_suffix: "flatpak"
+      release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+
   test-artifacts:
     name: Test Build Artifacts
     needs: [build-amd64]
@@ -85,7 +97,12 @@ jobs:
   release:
     name: Create Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test-flags, build-amd64, build-arm64, test-artifacts]
+    needs:
+      - test-flags
+      - build-amd64
+      - build-amd64-flatpak
+      - build-arm64
+      - test-artifacts
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -107,6 +124,12 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: package-amd64-appimage
+          path: artifacts/
+
+      - name: Download AMD64 Flatpak artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: package-amd64-flatpak
           path: artifacts/
 
       - name: Download ARM64 deb artifact

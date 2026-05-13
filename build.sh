@@ -102,6 +102,10 @@ run_packaging() {
 			script_name='appimage.sh'
 			file_pattern="${PACKAGE_NAME}-${version}-${architecture}.AppImage"
 			;;
+		flatpak)
+			script_name='flatpak.sh'
+			file_pattern="${PACKAGE_NAME}-${version}-${architecture}.flatpak"
+			;;
 	esac
 
 	if [[ $build_format == 'deb' || $build_format == 'rpm' ]]; then
@@ -122,6 +126,28 @@ run_packaging() {
 			echo "Package created at: $output_path"
 		else
 			echo "Warning: Could not determine final .${build_format} file path."
+			output_path='Not Found'
+		fi
+
+	elif [[ $build_format == 'flatpak' ]]; then
+		echo "Calling Flatpak packaging script for $architecture..."
+		chmod +x "scripts/packaging/$script_name" || exit 1
+		if ! "scripts/packaging/$script_name" \
+			"$version" "$architecture" "$work_dir" "$app_staging_dir" \
+			"$PACKAGE_NAME" "$MAINTAINER" "$DESCRIPTION"; then
+			echo 'Flatpak packaging script failed.' >&2
+			exit 1
+		fi
+
+		pkg_file=$(find "$work_dir" -maxdepth 1 -name "$file_pattern" \
+			| head -n 1)
+		echo 'Flatpak Build complete!'
+		if [[ -n $pkg_file && -f $pkg_file ]]; then
+			output_path="./$(basename "$pkg_file")"
+			mv "$pkg_file" "$output_path" || exit 1
+			echo "Bundle created at: $output_path"
+		else
+			echo 'Warning: Could not determine final .flatpak file path.'
 			output_path='Not Found'
 		fi
 
@@ -206,6 +232,17 @@ print_next_steps() {
 				echo -e "   (or \`$alt_cmd\`)"
 			else
 				echo -e "${build_format^^} package file not found. Cannot provide installation instructions."
+			fi
+			;;
+		flatpak)
+			if [[ $final_output_path != 'Not Found' && -e $final_output_path ]]; then
+				echo -e "Flatpak bundle created at: \033[1;36m$final_output_path\033[0m"
+				echo -e '\nTo install the bundle:'
+				echo -e "   \033[1;32mflatpak install --user $final_output_path\033[0m"
+				echo -e '\nTo run the installed app:'
+				echo -e '   \033[1;32mflatpak run ai.claude.Claude\033[0m'
+			else
+				echo 'Flatpak bundle file not found. Cannot provide install instructions.'
 			fi
 			;;
 		appimage)

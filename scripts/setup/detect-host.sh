@@ -163,8 +163,8 @@ parse_arguments() {
 				shift
 				;;
 			-h|--help)
-				echo "Usage: $0 [--build deb|rpm|appimage|nix] [--clean yes|no] [--exe /path/to/installer.exe] [--source-dir /path] [--release-tag TAG] [--test-flags]"
-				echo '  --build: Specify the build format (deb, rpm, appimage, or nix).'
+				echo "Usage: $0 [--build deb|rpm|appimage|flatpak|nix] [--clean yes|no] [--exe /path/to/installer.exe] [--source-dir /path] [--release-tag TAG] [--test-flags]"
+				echo '  --build: Specify the build format (deb, rpm, appimage, flatpak, or nix).'
 				echo "           Default: auto-detected based on distro (current: $build_format)"
 				echo '  --clean: Specify whether to clean intermediate build files (yes or no). Default: yes'
 				echo '  --exe:   Use a local Claude installer exe instead of downloading'
@@ -198,8 +198,11 @@ parse_arguments() {
 		exit 1
 	fi
 
-	if [[ $build_format != 'deb' && $build_format != 'rpm' && $build_format != 'appimage' && $build_format != 'nix' ]]; then
-		echo "Invalid build format specified: '$build_format'. Must be 'deb', 'rpm', 'appimage', or 'nix'." >&2
+	if [[ $build_format != 'deb' && $build_format != 'rpm' \
+		&& $build_format != 'appimage' && $build_format != 'flatpak' \
+		&& $build_format != 'nix' ]]
+	then
+		echo "Invalid build format specified: '$build_format'. Must be 'deb', 'rpm', 'appimage', 'flatpak', or 'nix'." >&2
 		exit 1
 	fi
 

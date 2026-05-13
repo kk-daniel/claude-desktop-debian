@@ -13,25 +13,34 @@
 check_dependencies() {
 	echo 'Checking dependencies...'
 	local deps_to_install=''
-	local common_deps='p7zip wget wrestool icotool convert'
+	# Test for the actual binary that download.sh invokes (`7z`).
+	# Using the conceptual package name `p7zip` here was a long-standing
+	# false negative: no distro ships a /usr/bin/p7zip, so the install
+	# branch fired on every run. It was silent on apt/Fedora<=42 (the
+	# install was a no-op), but Fedora 43 retired the p7zip package
+	# entirely and the install command now fails hard.
+	local common_deps='7z wget wrestool icotool convert'
 	local all_deps="$common_deps"
 
 	# Add format-specific dependencies
 	case "$build_format" in
 		deb) all_deps="$all_deps dpkg-deb" ;;
 		rpm) all_deps="$all_deps rpmbuild" ;;
+		flatpak) all_deps="$all_deps flatpak flatpak-builder" ;;
 	esac
 
 	# Command-to-package mappings per distro family
 	declare -A debian_pkgs=(
-		[p7zip]='p7zip-full' [wget]='wget' [wrestool]='icoutils'
+		[7z]='p7zip-full' [wget]='wget' [wrestool]='icoutils'
 		[icotool]='icoutils' [convert]='imagemagick'
 		[dpkg-deb]='dpkg-dev' [rpmbuild]='rpm'
+		[flatpak]='flatpak' [flatpak-builder]='flatpak-builder'
 	)
 	declare -A rpm_pkgs=(
-		[p7zip]='p7zip p7zip-plugins' [wget]='wget' [wrestool]='icoutils'
+		[7z]='7zip' [wget]='wget' [wrestool]='icoutils'
 		[icotool]='icoutils' [convert]='ImageMagick'
 		[dpkg-deb]='dpkg' [rpmbuild]='rpm-build'
+		[flatpak]='flatpak' [flatpak-builder]='flatpak-builder'
 	)
 
 	local cmd
