@@ -1,6 +1,6 @@
 # Claude Desktop for Linux
 
-This project provides build scripts to run Claude Desktop natively on Linux systems. It repackages the official Windows application for Linux distributions, producing `.deb` packages (Debian/Ubuntu), `.rpm` packages (Fedora/RHEL), distribution-agnostic AppImages, an [AUR package](https://aur.archlinux.org/packages/claude-desktop-appimage) for Arch Linux, and a Nix flake for NixOS.
+This project provides build scripts to run Claude Desktop natively on Linux systems. It repackages the official Windows application for Linux distributions, producing `.deb` packages (Debian/Ubuntu), `.rpm` packages (Fedora/RHEL), distribution-agnostic AppImages, Flatpak bundles, an [AUR package](https://aur.archlinux.org/packages/claude-desktop-appimage) for Arch Linux, and a Nix flake for NixOS.
 
 **Note:** This is an unofficial build script. For official support, please visit [Anthropic's website](https://www.anthropic.com). For issues with the build script or Linux implementation, please [open an issue](https://github.com/aaddrick/claude-desktop-debian/issues) in this repository.
 
@@ -129,9 +129,31 @@ Or add to your NixOS configuration:
 }
 ```
 
+### Using a Flatpak Bundle
+
+A single-file `.flatpak` bundle is published with each release. To install:
+
+```bash
+# Download the bundle for your architecture from the Releases page,
+# then install with --user (no sudo). Flathub remote must be
+# configured so the required runtimes (org.freedesktop.Sdk and
+# org.electronjs.Electron2.BaseApp) can be pulled.
+flatpak remote-add --user --if-not-exists flathub \
+  https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user claude-desktop-*-amd64.flatpak
+
+# Launch
+flatpak run ai.claude.Claude
+```
+
+Notes:
+- The bundle installs as `ai.claude.Claude` under your user, not system-wide.
+- The Flatpak sandbox uses native Wayland by default. Users who need XWayland (e.g. for global hotkeys) can grant the X11 socket and unset the Wayland override: `flatpak override --user --socket=x11 --unset-env=CLAUDE_USE_WAYLAND ai.claude.Claude`.
+- The tray icon defaults to the white glyph (suited for dark panels, which most Linux desktops use). On a light panel, switch with `flatpak override --user --env=CLAUDE_TRAY_ICON=light ai.claude.Claude` (or `=auto` to follow `nativeTheme.shouldUseDarkColors`).
+
 ### Using Pre-built Releases
 
-Download the latest `.deb`, `.rpm`, or `.AppImage` from the [Releases page](https://github.com/aaddrick/claude-desktop-debian/releases).
+Download the latest `.deb`, `.rpm`, `.AppImage`, or `.flatpak` from the [Releases page](https://github.com/aaddrick/claude-desktop-debian/releases).
 
 ### Building from Source
 
