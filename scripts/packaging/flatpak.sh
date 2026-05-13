@@ -235,14 +235,15 @@ set -eu
 install -d /app/lib/claude-desktop
 cp -a app/. /app/lib/claude-desktop/
 
-# Symlink node SDK extension binaries onto PATH. The node24 SDK
-# extension is exposed by the org.freedesktop.Sdk runtime under
-# /usr/lib/sdk/node24/ (its declared extension point); /app/bin is on
-# PATH by default while /usr/lib/sdk/node24/bin is not, so we bridge
-# via these symlinks.
+# Symlink node SDK extension binaries onto PATH. The extension is
+# pulled at user-install time (declared in manifest add-extensions)
+# and mounted at /app/lib/sdk/node24/. /app/bin is on PATH by default
+# while /app/lib/sdk/node24/bin is not, so we bridge via these
+# symlinks. Targets are dangling at build time (mount only happens at
+# runtime) — that is intentional and resolves once the app runs.
 install -d /app/bin
 for bin in node npm npx corepack; do
-	ln -sf /usr/lib/sdk/node24/bin/\$bin /app/bin/\$bin
+	ln -sf /app/lib/sdk/node24/bin/\$bin /app/bin/\$bin
 done
 
 install -Dm755 claude-desktop /app/bin/claude-desktop
@@ -282,6 +283,18 @@ base-version: '${runtime_version}'
 command: claude-desktop
 tags: [proprietary]
 separate-locales: false
+# Declare the node24 SDK extension so flatpak pulls it on user install
+# and mounts it at /usr/lib/sdk/node24 at runtime. Required by the
+# /app/bin/{node,npm,npx,corepack} symlinks created in install.sh; MCP
+# servers spawned by Claude need node in PATH. The Sdk runtime alone
+# only declares the extension *point* — it does not auto-install the
+# extension content.
+add-extensions:
+  org.freedesktop.Sdk.Extension.node24:
+    version: '${runtime_version}'
+    directory: lib/sdk/node24
+    add-ld-path: lib
+    no-autodownload: false
 finish-args:
   - --require-version=0.10.3
   - --share=network
@@ -297,7 +310,7 @@ finish-args:
   # which has no X server reachable inside the sandbox
   # (--socket=fallback-x11 is inert when Wayland is present) and
   # SIGSEGVs Electron during Ozone init. Users who want XWayland
-  # can grant --socket=x11 + unset this via `flatpak override`.
+  # can grant --socket=x11 + unset this via 'flatpak override'.
   - --env=CLAUDE_USE_WAYLAND=1
   - --talk-name=org.freedesktop.Notifications
   # Notification-area / tray (StatusNotifierItem on KDE & GNOME-via-
@@ -347,8 +360,11 @@ flatpak remote-add --user --if-not-exists flathub \
 	https://flathub.org/repo/flathub.flatpakrepo || exit 1
 
 echo 'Installing required runtimes (idempotent)...'
+# Sdk is the manifest's runtime AND its build sdk, so Platform is not
+# needed on the build host (Sdk is a superset). Electron2.BaseApp is
+# the manifest's base. Extension content is pulled by users at install
+# time via the manifest's add-extensions declaration, not here.
 flatpak install --user -y --noninteractive flathub \
-	"org.freedesktop.Platform//${runtime_version}" \
 	"org.freedesktop.Sdk//${runtime_version}" \
 	"org.electronjs.Electron2.BaseApp//${runtime_version}" || {
 	echo 'Failed to install Flatpak runtimes' >&2
