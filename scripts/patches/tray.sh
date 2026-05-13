@@ -81,13 +81,47 @@ patch_tray_icon_selection() {
 	local index_js='app.asar.contents/.vite/build/index.js'
 	local dark_check="${electron_var_re}.nativeTheme.shouldUseDarkColors"
 
-	if grep -qP ':\$?\w+="TrayIconTemplate\.png"' "$index_js"; then
-		sed -i -E \
-			"s/:(\\\$?\w+)=\"TrayIconTemplate\.png\"/:\1=${dark_check}?\"TrayIconTemplate-Dark.png\":\"TrayIconTemplate.png\"/g" \
-			"$index_js"
-		echo 'Patched tray icon selection for Linux theme support'
-	else
+	# Upstream picks "TrayIconTemplate.png" unconditionally on Linux.
+	# Names are misleading:
+	#   TrayIconTemplate.png      = black glyph (visible on LIGHT panels)
+	#   TrayIconTemplate-Dark.png = white glyph (visible on DARK panels)
+	# Most Linux panels are dark, and nativeTheme.shouldUseDarkColors is
+	# unreliable on KDE Plasma (the portal/GTK color-scheme signal often
+	# doesn't match the actual panel theme — and inside the Flatpak
+	# sandbox the signal is missing entirely). Default to the white
+	# glyph and let users override with
+	# CLAUDE_TRAY_ICON=dark|light|auto. 'auto' falls back to the
+	# upstream nativeTheme check.
+	if ! grep -qP ':\$?\w+="TrayIconTemplate\.png"' "$index_js"; then
 		echo 'Tray icon selection pattern not found or already patched'
+		echo '##############################################################'
+		return
+	fi
+
+	local repl
+	repl='(()=>{if(process.platform!=="linux")return"TrayIconTemplate.png";'
+	repl+='const v=(process.env.CLAUDE_TRAY_ICON||"dark").toLowerCase();'
+	repl+='if(v==="light")return"TrayIconTemplate.png";'
+	repl+="if(v===\"auto\")return ${dark_check}"
+	repl+='?"TrayIconTemplate-Dark.png":"TrayIconTemplate.png";'
+	repl+='return"TrayIconTemplate-Dark.png"})()'
+
+	# Delimiter must not appear anywhere in pattern or replacement.
+	# Body contains `||` (the JS short-circuit), so `|` is unsafe.
+	# `/` does not appear anywhere in pattern or replacement.
+	sed -i -E \
+		"s/:(\\\$?\w+)=\"TrayIconTemplate\.png\"/:\1=${repl}/g" \
+		"$index_js"
+
+	# Verify substitution actually applied — sed will print no error if
+	# the regex fails to match or a delimiter collision truncates the
+	# replacement, so the pattern marker is the only reliable signal.
+	if grep -q 'CLAUDE_TRAY_ICON' "$index_js"; then
+		echo 'Patched tray icon selection (default: dark panel, override via CLAUDE_TRAY_ICON)'
+	else
+		echo 'ERROR: tray icon sed completed but CLAUDE_TRAY_ICON marker absent' >&2
+		echo 'ERROR: substitution likely failed (delimiter collision or pattern mismatch)' >&2
+		exit 1
 	fi
 	echo '##############################################################'
 }
