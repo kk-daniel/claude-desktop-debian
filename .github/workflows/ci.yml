@@ -55,7 +55,8 @@ jobs:
 
   # Flatpak runs on its own reusable workflow because flatpak-builder
   # needs flathub runtimes pulled before build.sh fires, which doesn't
-  # match the deb/rpm/appimage container shape.
+  # match the deb/rpm/appimage container shape. The same reusable
+  # workflow is invoked twice with different runners for each arch.
   build-amd64-flatpak:
     name: Build Packages (amd64 - flatpak)
     needs: test-flags
@@ -63,6 +64,19 @@ jobs:
     with:
       build_flags: "--build flatpak --clean no"
       artifact_suffix: "flatpak"
+      arch_label: "amd64"
+      runner: "ubuntu-latest"
+      release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+
+  build-arm64-flatpak:
+    name: Build Packages (arm64 - flatpak)
+    needs: test-flags
+    uses: ./.github/workflows/build-flatpak.yml
+    with:
+      build_flags: "--build flatpak --clean no"
+      artifact_suffix: "flatpak"
+      arch_label: "arm64"
+      runner: "ubuntu-22.04-arm"
       release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
 
   test-artifacts:
@@ -102,6 +116,7 @@ jobs:
       - build-amd64
       - build-amd64-flatpak
       - build-arm64
+      - build-arm64-flatpak
       - test-artifacts
     runs-on: ubuntu-latest
     permissions:
@@ -148,6 +163,12 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: package-arm64-appimage
+          path: artifacts/
+
+      - name: Download ARM64 Flatpak artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: package-arm64-flatpak
           path: artifacts/
 
       # --- Release notes generation (inline, with fallback) ---
@@ -328,9 +349,18 @@ jobs:
             echo "yay -S claude-desktop-appimage"
             echo '```'
             echo ""
+            echo "### Flatpak (single-file bundle)"
+            echo ""
+            echo '```bash'
+            echo "# Pick the .flatpak for your architecture from the assets below, then:"
+            echo "flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+            echo "flatpak install --user claude-desktop-*-amd64.flatpak"
+            echo "flatpak run ai.claude.Claude"
+            echo '```'
+            echo ""
             echo "### Manual Download"
             echo ""
-            echo "Download \`.deb\`, \`.rpm\`, or \`.AppImage\` from the assets below."
+            echo "Download \`.deb\`, \`.rpm\`, \`.AppImage\`, or \`.flatpak\` from the assets below."
           } > ../compare-work/summary.md
 
       - name: Generate fallback release notes
@@ -386,9 +416,18 @@ jobs:
             echo "yay -S claude-desktop-appimage"
             echo '```'
             echo ""
+            echo "### Flatpak (single-file bundle)"
+            echo ""
+            echo '```bash'
+            echo "# Pick the .flatpak for your architecture from the assets below, then:"
+            echo "flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+            echo "flatpak install --user claude-desktop-*-amd64.flatpak"
+            echo "flatpak run ai.claude.Claude"
+            echo '```'
+            echo ""
             echo "### Manual Download"
             echo ""
-            echo "Download \`.deb\`, \`.rpm\`, or \`.AppImage\` from the assets below."
+            echo "Download \`.deb\`, \`.rpm\`, \`.AppImage\`, or \`.flatpak\` from the assets below."
           } > compare-work/summary.md
 
       - name: Create GitHub Release

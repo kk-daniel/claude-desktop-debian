@@ -12,6 +12,16 @@ on:
         description: "Suffix for the artifact name"
         required: true
         type: string
+      arch_label:
+        description: 'Architecture label used in the artifact name ("amd64" or "arm64")'
+        required: false
+        type: string
+        default: "amd64"
+      runner:
+        description: 'GitHub runner label (e.g., "ubuntu-latest", "ubuntu-22.04-arm")'
+        required: false
+        type: string
+        default: "ubuntu-latest"
       release_tag:
         description: "Optional release tag (e.g., v1.3.2+claude1.1.799) to derive wrapper version"
         required: false
@@ -20,16 +30,16 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      # flatpak-builder pulls the org.freedesktop.{Platform,Sdk} and
-      # org.electronjs.Electron2.BaseApp runtimes from Flathub at build
-      # time. The runner image ships flatpak but not flatpak-builder,
-      # and the CI runs as a normal user so --user installs go to
+      # flatpak-builder pulls org.freedesktop.Sdk and
+      # org.electronjs.Electron2.BaseApp from Flathub at build time.
+      # The runner image ships flatpak but not flatpak-builder, and
+      # the CI runs as a normal user so --user installs go to
       # ~/.local/share/flatpak (no sudo needed).
       - name: Install flatpak tooling
         run: |
@@ -53,10 +63,10 @@ jobs:
           ./build.sh ${{ inputs.build_flags }} $TAG_FLAG
 
       - name: Smoke test bundle
-        # Validates the file is a real Flatpak single-file bundle.
-        # `flatpak info` on a .flatpak file inspects its embedded
-        # metadata without installing it (avoids needing user-session
-        # dbus on the headless runner).
+        # Validates the file is a real Flatpak single-file bundle and
+        # checks the embedded metadata. `flatpak info --show-metadata
+        # <bundle>` inspects without installing, so no user-session
+        # dbus is needed on the headless runner.
         run: |
           bundle=$(find . -maxdepth 1 -name 'claude-desktop-*.flatpak' \
             -print -quit)
@@ -66,13 +76,12 @@ jobs:
           fi
           echo "Bundle: $bundle"
           file "$bundle"
-          flatpak info --file-access=. --show-metadata "$bundle" \
-            || flatpak info --show-metadata "$bundle" || true
+          flatpak info --show-metadata "$bundle"
 
       - name: Upload Flatpak Artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: package-amd64-${{ inputs.artifact_suffix }}
+          name: package-${{ inputs.arch_label }}-${{ inputs.artifact_suffix }}
           path: |
             claude-desktop-*.flatpak
           if-no-files-found: error
